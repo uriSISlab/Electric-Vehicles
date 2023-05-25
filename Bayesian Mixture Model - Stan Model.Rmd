@@ -1,0 +1,172 @@
+---
+title: "Bayesian Mixture Model - Stan Model"
+author: "Mehrsa Khaleghikarahrodi & Gretchen A. Macht"
+date: '2023-05-25'
+output: word_document
+---
+# Install packages
+```{r}
+library(rstan)
+```
+
+# Bayesian Multivariate Mixture Model + random effects 
+# Multivariate modeling accounts for the correlation between shape parameters (i.e., alpha & beta). Included random effect to allow     for individual influence of the individuals on the fitting of distributions.
+```{r}
+Model= 
+"data {
+int N; //number of observations
+vector[N] y; //this will be either the shape1 & shape2 parameter
+int M; //number of individuals
+vector[N] x; //parameter identifier for alpha & beta
+int g[N] ; //the individual identifier
+
+real beta_a; //this will be the prior a shape parameter for the beta distribution that determines the proportion of each group
+real beta_b; //this will be the prior b shape parameter for the beta distribution that determines the proportion of each group
+
+real prior1_mean1; //this will be the prior mean for the first group
+real prior1_mean2; //this will be the prior mean for the second group
+
+real prior1_variance1; //this will be the prior variance of the mean for the first group
+real prior1_variance2; //this will be the prior variance of the mean for the second group
+
+real prior2_mean1; //this will be the prior mean for the first group
+real prior2_mean2; //this will be the prior mean for the second group
+
+real prior2_variance1; //this will be the prior variance of the mean for the first group
+real prior2_variance2; //this will be the prior variance of the mean for the second group
+
+real prior1_variance_a1; //this will be the prior variance shape parameter a for the first group
+real prior1_variance_b1; //this will be the prior variance shape parameter b for the first group
+
+real prior1_variance_a2; //this will be the prior variance shape parameter a for the second group
+real prior1_variance_b2; //this will be the prior variance shape parameter b for the second group
+
+real prior2_variance_a1; //this will be the prior variance shape parameter a for the first group
+real prior2_variance_b1; //this will be the prior variance shape parameter b for the first group
+
+real prior2_variance_a2; //this will be the prior variance shape parameter a for the second group
+real prior2_variance_b2; //this will be the prior variance shape parameter b for the second group
+
+real prior_variance_aID; //this will be the prior variance shape parameter a for the first group
+real prior_variance_bID; //this will be the prior variance shape parameter b for the first group
+}
+
+//this related to posterior values
+parameters {
+  ordered[2] mu_alpha; //this will be the means for the distributions
+  real sigma_alpha[2]; //this will be the variances for the distributions
+  ordered[2] mu_beta; //this will be the means for the distributions
+  real sigma_beta[2]; //this will be the variances for the distributions
+  real<lower=0, upper=1> theta;
+  real <lower=0> sigma_id;
+  real a[M]; //the random effects
+}
+
+model {
+sigma_alpha[1] ~ gamma(prior1_variance_a1, prior1_variance_b1);
+sigma_beta[2] ~ gamma(prior1_variance_a2, prior1_variance_b2);
+
+sigma_alpha[1] ~ gamma(prior2_variance_a1, prior2_variance_b1);
+sigma_beta[2] ~ gamma(prior2_variance_a2, prior2_variance_b2);
+
+mu_alpha[1] ~ normal(prior1_mean1, prior1_variance1);
+mu_beta[2] ~ normal(prior1_mean2, prior1_variance2);
+
+mu_alpha[1] ~ normal(prior2_mean1, prior2_variance1);
+mu_beta[2] ~ normal(prior2_mean2, prior2_variance2);
+
+sigma_id ~ gamma(prior_variance_aID, prior_variance_bID);
+a ~ normal(0,sigma_id);
+
+//the probability of each distribution. it is beta because we are looking at the probability
+theta ~ beta(beta_a, beta_b);
+
+//this line compiles all of the given the probability and normal distribution values
+for (n in 1:N)
+   target += log_mix(theta,
+                     normal_lpdf(y[n] | mu_alpha[1]*x+mu_beta[1]*(1-x)+a[g[N]], sigma_alpha[1]*x+sigma_beta[1]*(1-x)),
+                     normal_lpdf(y[n] | mu_alpha[2]*x+mu_beta[2]*(1-x)+a[g[N]], sigma_alpha[2]*x+sigma_beta[2]*(1-x)));
+}
+"
+```
+
+# Creating the data file for Multivatiate Model
+```{r non-informative prior [26%]} 
+mod_data_beta=list(N=nrow(Multi.Beta), #N
+              y=Multi.Beta$Combo.Shape, #y
+              M=length(unique(Multi.Beta$Identifier)),
+              x=Multi.Beta$Shape.ID, #x
+              g=Multi.Beta$Identifier,
+              
+              beta_a=1,
+              beta_b=1,
+              
+              prior1_mean1=3.576527, 
+              prior1_variance1=1000, 
+              prior1_mean2=1.787060,
+              prior1_variance2=1000,
+              
+              prior2_mean1=1.719126, 
+              prior2_variance1=1000, 
+              prior2_mean2=2.509360,
+              prior2_variance2=1000,
+              
+              prior1_variance_a1=1000,
+              prior1_variance_b1=1000,
+              prior1_variance_a2=1000,
+              prior1_variance_b2=1000, 
+              
+              prior2_variance_a1=1000,
+              prior2_variance_b1=1000,
+              prior2_variance_a2=1000,
+              prior2_variance_b2=1000) 
+
+fit_shape=stan(model_code=Model,
+         model_name="Model",
+         data=mod_data_beta,
+         iter=10000, chains=1, seed=100)
+
+fit_shape
+
+traceplot(fit_shape)
+```
+
+```{r informative prior} 
+mod_data_beta.adj.v=list(N=nrow(Multi.Beta),#N
+              y=Multi.Beta$Combo.Shape,#y
+              M=length(unique(Multi.Beta$Identifier)),
+              x=Multi.Beta$Shape.ID,#x
+              g=Multi.Beta$Identifier,
+              
+              beta_a=1,
+              beta_b=1,
+              
+              prior1_mean1=3.576527, 
+              prior1_variance1=(6.706670^2), 
+              prior1_mean2=1.787060,
+              prior1_variance2=(1.175943^2),
+              
+              prior2_mean1=1.719126, 
+              prior2_variance1=(3.231138^2), 
+              prior2_mean2=2.509360,
+              prior2_variance2=(1.787653^2),
+              
+              prior1_variance_a1=67.5,
+              prior1_variance_b1=89.958832,
+              prior1_variance_a2=191.5,
+              prior1_variance_b2=2.765682, 
+              
+              prior2_variance_a1=67.5,
+              prior2_variance_b1=20.880506,
+              prior2_variance_a2=191.5,
+              prior2_variance_b2=6.391408) 
+
+fit_shape.adj.v=stan(model_code=Model,
+         model_name="Model",
+         data=mod_data_beta.adj.v,
+         iter=10000, chains=1, seed=100)
+
+fit_shape.adj.v
+
+traceplot(fit_shape)
+```
