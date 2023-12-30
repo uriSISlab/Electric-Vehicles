@@ -4,13 +4,20 @@ author: "Mehrsa Khaleghikarahrodi & Gretchen A. Macht"
 date: '2023-05-25'
 output: word_document
 ---
+# (1) Stan is writing a program that reflects the model that one designs which relates inputs to outputs for producing estimates. 
+
 # Install packages
 ```{r}
 library(rstan)
 ```
 
+# (2) Stan is taking inputs to estimate outputs. Refer to equation (3) in the paper.
+# (2a - data) The name and format (integer or vector) of the inputs are specified. in addition to specifying the data, the priors for conducting the analysis need to be specified.
+# (2b - parameters) Refers to the estimators (outputs) that model generates.
+# (2c - model) The model is the combination of inputs and how it establishew a relation with outputs to produce the estimates.
+# The model is a "Multivariate Model" which accounts for the correlation between shape parameters (i.e., alpha & beta) & includes random effect to allow for individual influence on the fitting of distributions.
+
 # Bayesian Multivariate Mixture Model + random effects 
-# Multivariate modeling accounts for the correlation between shape parameters (i.e., alpha & beta). Included random effect to allow     for individual influence of the individuals on the fitting of distributions.
 ```{r}
 Model= 
 "data {
@@ -90,7 +97,11 @@ for (n in 1:N)
 "
 ```
 
+# (3) This section takes the designed model and the specifications mentioned above (given the data and prior information) to produce the estimates. There is two sets of prior information one being informative and the other being non-informative. 
+# All users’ shape parameters of Beta distribution charging profiles are attained to initiate and execute the mixture modeling through the prior knowledge adapted from Khaleghikarahrodi and Macht (2023b). Given the summary of statistics on users with procrastination-like charging behavior, as outlined in Khaleghikarahrodi and Macht (2023b), the method of moments is utilized to infer the shape parameters for the prior information.
+
 # Creating the data file for Multivatiate Model
+# (3a - non-informative prior) The wider the selected variance, the more uninformative the prior (i.e., variance=100).
 ```{r non-informative prior [26%]} 
 mod_data_beta=list(N=nrow(Multi.Beta), #N
               y=Multi.Beta$Combo.Shape, #y
@@ -131,6 +142,7 @@ fit_shape
 traceplot(fit_shape)
 ```
 
+# (3b - informative prior) The informative prior includes more percise variance which is adpated from Khaleghikarahrodi and Macht (2023b). 
 ```{r informative prior} 
 mod_data_beta.adj.v=list(N=nrow(Multi.Beta),#N
               y=Multi.Beta$Combo.Shape,#y
